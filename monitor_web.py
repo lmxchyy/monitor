@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import html
 import json
 import mimetypes
 import os
+import re
 import subprocess
 import threading
 import time
@@ -34,6 +36,65 @@ def today() -> str:
 def latest_report_path() -> Path | None:
     reports = sorted(RESULTS_DIR.glob("results_*.html"), key=lambda p: p.stat().st_mtime, reverse=True)
     return reports[0] if reports else None
+
+
+def strip_tags(value: str) -> str:
+    text = re.sub(r"<script[\s\S]*?</script>", " ", value, flags=re.I)
+    text = re.sub(r"<style[\s\S]*?</style>", " ", text, flags=re.I)
+    text = re.sub(r"<[^>]+>", " ", text)
+    text = html.unescape(text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def extract_table_rows(report_html: str, limit: int = 12) -> list[dict]:
+    rows = []
+    for row_html in re.findall(r"<tr[\s\S]*?</tr>", report_html, flags=re.I):
+        cells = [strip_tags(cell) for cell in re.findall(r"<t[dh][^>]*>([\s\S]*?)</t[dh]>", row_html, flags=re.I)]
+        cells = [cell for cell in cells if cell]
+        if len(cells) >= 2 and not all(len(cell) < 3 for cell in cells):
+            rows.append({"title": cells[0], "meta": " · ".join(cells[1:4]), "raw": cells[:6]})
+        if len(rows) >= limit:
+            break
+    return rows
+
+
+def dashboard_payload() -> dict:
+    report = latest_report_path()
+    payload = {
+        "updated_at": dt.datetime.now().isoformat(timespec="seconds"),
+        "report": str(report) if report else None,
+        "report_mtime": None,
+        "summary": {
+            "companies": 500,
+            "funding_events": 0,
+            "hiring_signals": 0,
+            "hot_industries": 0,
+        },
+        "events": [],
+        "industries": [],
+        "health": status_payload(),
+    }
+    if not report:
+        return payload
+
+    payload["report_mtime"] = dt.datetime.fromtimestamp(report.stat().st_mtime).isoformat(timespec="seconds")
+    content = report.read_text(encoding="utf-8", errors="ignore")
+    text = strip_tags(content)
+    numbers = [int(num) for num in re.findall(r"(?<!\d)(\d{1,5})(?!\d)", text)]
+    payload["summary"]["funding_events"] = max([n for n in numbers if n < 10000], default=0)
+    payload["summary"]["hiring_signals"] = len(re.findall(r"招聘|岗位|职位|hiring|job", text, flags=re.I))
+    payload["summary"]["hot_industries"] = len(set(re.findall(r"人工智能|医疗|半导体|机器人|新能源|企业服务|消费|金融|教育", text)))
+    payload["events"] = extract_table_rows(content)
+    payload["industries"] = [
+        {"name": name, "value": count}
+        for name, count in sorted(
+            ((name, len(re.findall(name, text))) for name in ["人工智能", "医疗", "半导体", "机器人", "新能源", "企业服务", "消费", "金融", "教育"]),
+            key=lambda item: item[1],
+            reverse=True,
+        )
+        if count > 0
+    ][:8]
+    return payload
 
 
 def run_etl(date: str | None = None) -> None:
@@ -116,6 +177,8 @@ class Handler(BaseHTTPRequestHandler):
             self._send_report()
         elif path == "/status":
             self._send_json(status_payload())
+        elif path == "/api/dashboard":
+            self._send_json(dashboard_payload())
         elif path == "/run-now":
             threading.Thread(target=run_etl, daemon=True).start()
             self._send_json({"started": True})
