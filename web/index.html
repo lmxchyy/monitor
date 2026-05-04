@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>monitor live</title>
+  <link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body>
+  <div id="app" v-cloak>
+    <aside class="shell-rail">
+      <div class="brand-mark">M</div>
+      <button class="rail-button active" title="实时看板">◇</button>
+      <button class="rail-button" title="报告">▣</button>
+      <button class="rail-button" title="日志">≡</button>
+    </aside>
+
+    <main class="workspace">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Enterprise Signal Console</p>
+          <h1>monitor live</h1>
+        </div>
+        <div class="topbar-actions">
+          <span class="status-pill" :class="statusClass">
+            <span class="pulse"></span>{{ statusText }}
+          </span>
+          <button class="action-button ghost" @click="refreshAll">刷新</button>
+          <button class="action-button primary" @click="runNow" :disabled="status.running">立即跑批</button>
+        </div>
+      </header>
+
+      <section class="signal-grid">
+        <article class="metric-panel">
+          <span class="metric-label">报告时间</span>
+          <strong>{{ status.report_mtime || '-' }}</strong>
+          <small>{{ status.report || 'waiting for report' }}</small>
+        </article>
+        <article class="metric-panel">
+          <span class="metric-label">服务时间</span>
+          <strong>{{ status.server_time || '-' }}</strong>
+          <small>status refresh: 5s</small>
+        </article>
+        <article class="metric-panel">
+          <span class="metric-label">最近任务</span>
+          <strong>{{ status.last_finished_at || status.last_started_at || '-' }}</strong>
+          <small>{{ status.last_ok === false ? 'failed' : 'completed or pending' }}</small>
+        </article>
+      </section>
+
+      <section class="console-layout">
+        <div class="report-frame">
+          <iframe :src="reportSrc" title="monitor report"></iframe>
+        </div>
+        <aside class="telemetry-panel">
+          <div class="panel-head">
+            <span>ETL Telemetry</span>
+            <button class="mini-button" @click="loadStatus">同步</button>
+          </div>
+          <pre>{{ trimmedMessage }}</pre>
+        </aside>
+      </section>
+    </main>
+  </div>
+
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script src="/assets/app.js"></script>
+</body>
+</html>

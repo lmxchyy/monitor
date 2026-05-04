@@ -1,0 +1,18 @@
+funding:
+  rss_feeds:
+    - name: "36氪"
+      url: "https://36kr.com/feed"
+    - name: "创业邦"
+      url: "https://www.cyzone.cn/rss/news.xml"
+    - name: "投资界"
+      url: "https://www.pedaily.cn/rss"
+  disclosure_lists:
+    - name: "IT桔子-最新投融资"
+      url: "https://www.itjuzi.com/investevents"
+      fetcher: "stealth"
+      capture_api: true
+      selectors:
+        - "tr"
+        - ".list-item"
+        - ".el-table__row"
+        - "[class*='invest']"
