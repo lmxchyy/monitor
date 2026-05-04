@@ -7,47 +7,53 @@
   <link rel="stylesheet" href="/assets/styles.css">
 </head>
 <body>
-<div id="app" v-cloak>
+<div id="app" v-cloak class="dashboard">
+  <div class="hud-grid"></div>
 
-<header class="topbar">
-  <h1>企业数据驾驶舱</h1>
-  <button @click="refresh">刷新</button>
-</header>
+  <header class="topbar glass">
+    <div>
+      <p class="eyebrow">AI INSIGHT CONSOLE</p>
+      <h1>企业数据驾驶舱</h1>
+    </div>
+    <button class="refresh-btn" @click="refresh">刷新数据</button>
+  </header>
 
-<section class="signal-grid">
-  <div class="metric-panel">
-    <span>企业数</span>
-    <strong>{{ data.summary.companies }}</strong>
-  </div>
-  <div class="metric-panel">
-    <span>融资事件</span>
-    <strong>{{ data.summary.funding_events }}</strong>
-  </div>
-  <div class="metric-panel">
-    <span>招聘信号</span>
-    <strong>{{ data.summary.hiring_signals }}</strong>
-  </div>
-</section>
+  <section class="signal-grid">
+    <div class="metric-panel glass cyan">
+      <span>企业数</span>
+      <strong>{{ data.summary.companies || 0 }}</strong>
+    </div>
+    <div class="metric-panel glass violet">
+      <span>融资事件</span>
+      <strong>{{ data.summary.funding_events || 0 }}</strong>
+    </div>
+    <div class="metric-panel glass green">
+      <span>招聘信号</span>
+      <strong>{{ data.summary.hiring_signals || 0 }}</strong>
+    </div>
+  </section>
 
-<section>
-  <h2>热门行业</h2>
-  <ul>
-    <li v-for="item in data.industries">
-      {{ item.name }} ({{ item.value }})
-    </li>
-  </ul>
-</section>
+  <section class="panel glass">
+    <h2>热门行业</h2>
+    <ul class="data-list">
+      <li v-for="item in data.industries" :key="item.name">
+        <span>{{ item.name }}</span>
+        <b>{{ item.value }}</b>
+      </li>
+    </ul>
+  </section>
 
-<section>
-  <h2>最新事件</h2>
-  <ul>
-    <li v-for="e in data.events">
-      {{ e.title }} - {{ e.meta }}
-    </li>
-  </ul>
-</section>
-
+  <section class="panel glass">
+    <h2>最新事件</h2>
+    <ul class="data-list">
+      <li v-for="e in data.events" :key="`${e.title}-${e.meta}`">
+        <span>{{ e.title }}</span>
+        <small>{{ e.meta }}</small>
+      </li>
+    </ul>
+  </section>
 </div>
+
 <script src="https://unpkg.com/vue@3"></script>
 <script>
 const { createApp, ref, onMounted } = Vue;
