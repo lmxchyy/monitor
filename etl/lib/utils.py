@@ -163,6 +163,8 @@ def parse_funding_details(text: str) -> dict:
     )
     m_investor = re.search(investor_pattern, text)
     res_investors = m_investor.group(1).strip() if m_investor else None
+    if res_investors:
+        res_investors = re.sub(r"(?:参与|联合|共同|独家|持续|继续|战略)$", "", res_investors).strip()
 
     return {
         "round": res_round,
@@ -170,6 +172,68 @@ def parse_funding_details(text: str) -> dict:
         "currency": res_currency,
         "investors": res_investors,
     }
+
+
+_FUNDING_SIGNAL_PATTERNS = [
+    r"融资",
+    r"融得",
+    r"完成.{0,12}(?:轮|融资|投资)",
+    r"获得.{0,12}(?:融资|投资|注资)",
+    r"获.{0,12}(?:融资|投资|注资)",
+    r"领投",
+    r"参投",
+    r"跟投",
+    r"独家投资",
+    r"战略投资",
+    r"增资",
+    r"定增",
+    r"募资",
+    r"并购",
+    r"收购",
+    r"IPO",
+    r"上市",
+    r"(?:种子|天使|Pre-A|Pre-B|A|B|C|D|E|F|G|战略)\+?轮",
+]
+
+_NON_FUNDING_NOISE_PATTERNS = [
+    r"招聘",
+    r"校招",
+    r"社招",
+    r"财报",
+    r"营收",
+    r"利润",
+    r"人事任命",
+    r"内部信",
+]
+
+
+def is_funding_related_text(text: str, details: dict | None = None) -> bool:
+    details = details or parse_funding_details(text)
+    if details.get("amount") or details.get("round") or details.get("investors"):
+        return True
+
+    return any(re.search(pattern, text, re.IGNORECASE) for pattern in _FUNDING_SIGNAL_PATTERNS)
+
+
+def funding_confidence(
+    text: str,
+    details: dict | None = None,
+    base: float = 0.300,
+    source_bonus: float = 0.0,
+) -> float:
+    details = details or parse_funding_details(text)
+    score = base + source_bonus
+    if details.get("amount"):
+        score += 0.220
+    if details.get("round"):
+        score += 0.160
+    if details.get("investors"):
+        score += 0.140
+    if any(re.search(pattern, text, re.IGNORECASE) for pattern in _FUNDING_SIGNAL_PATTERNS):
+        score += 0.080
+    if any(re.search(pattern, text, re.IGNORECASE) for pattern in _NON_FUNDING_NOISE_PATTERNS):
+        score -= 0.080
+    return max(0.050, min(score, 0.950))
 
 
 def extract_event_date(text: str, default_date: dt.date | None = None) -> dt.date | None:

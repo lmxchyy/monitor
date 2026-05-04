@@ -109,6 +109,7 @@ COL_LABELS = {
     "channel": "渠道",
     "cnt": "记录数",
     "source_type": "来源类型",
+    "source_name": "来源",
     "date": "日期",
     "open_jobs_total": "在招岗位数",
     "funding_last_90d_count": "近90天融资次数",
@@ -119,6 +120,7 @@ COL_LABELS = {
     "currency": "币种",
     "investors": "投资方/来源",
     "source_url": "来源链接",
+    "confidence": "置信度",
 }
 
 CHANNEL_LABELS = {
@@ -171,6 +173,14 @@ def map_cell(col: str, val) -> str:
         s = CHANNEL_LABELS.get(s, s)
     elif col == "source_type":
         s = SOURCE_TYPE_LABELS.get(s, s)
+    elif col == "source_url":
+        safe = esc(s)
+        return f'<a href="{safe}" target="_blank" rel="noopener noreferrer">查看原文</a>'
+    elif col == "confidence":
+        try:
+            return f"{float(s):.2f}"
+        except ValueError:
+            pass
     return esc(s)
 
 
@@ -206,13 +216,18 @@ def main() -> None:
         "SELECT snapshot_date, channel, COUNT(*) cnt FROM hiring_snapshots GROUP BY snapshot_date, channel ORDER BY snapshot_date DESC, channel"
     )
     funding_counts = query(
-        "SELECT source_type, COUNT(*) cnt FROM funding_events GROUP BY source_type ORDER BY source_type"
+        "SELECT source_type, ROUND(AVG(confidence), 3) confidence, COUNT(*) cnt "
+        "FROM funding_events GROUP BY source_type ORDER BY cnt DESC, source_type"
     )
     funding_details = query(
-        "SELECT f.event_date, c.name, f.round, f.amount, f.currency, f.investors, f.source_url "
+        "SELECT f.event_date, c.name, f.round, f.amount, f.currency, f.investors, "
+        "CASE WHEN JSON_VALID(f.raw_text) THEN "
+        "COALESCE(JSON_UNQUOTE(JSON_EXTRACT(f.raw_text, '$.source')), JSON_UNQUOTE(JSON_EXTRACT(f.raw_text, '$.feed')), f.source_type) "
+        "ELSE f.source_type END AS source_name, "
+        "f.confidence, f.source_url "
         "FROM funding_events f JOIN companies c ON c.id=f.company_id "
-        "WHERE f.source_type='rss_candidate' OR f.amount IS NOT NULL "
-        "ORDER BY f.event_date DESC LIMIT 50"
+        "WHERE f.source_type='rss_candidate' OR f.source_type='web_list' OR f.amount IS NOT NULL "
+        "ORDER BY f.event_date DESC, f.confidence DESC LIMIT 50"
     )
     metrics = query(
         "SELECT m.date, c.name, c.industry, m.open_jobs_total, m.funding_last_90d_count, m.latest_funding_date "

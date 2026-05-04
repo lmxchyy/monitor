@@ -6,6 +6,8 @@ from lib.store import get_all_companies, upsert_funding_events
 from lib.utils import (
     company_search_variants,
     extract_event_date,
+    funding_confidence,
+    is_funding_related_text,
     parse_funding_details,
     stable_fingerprint,
 )
@@ -75,7 +77,7 @@ def fetch_web_list_events(source_cfg: dict, companies: list[dict], run_date: dt.
                 continue
 
             details = parse_funding_details(block)
-            if not details["amount"] and "融资" not in block:
+            if not is_funding_related_text(block, details):
                 continue
 
             fp = stable_fingerprint(["funding", "web", name, block[:100]])
@@ -87,16 +89,22 @@ def fetch_web_list_events(source_cfg: dict, companies: list[dict], run_date: dt.
                     amount=details["amount"],
                     currency=details["currency"],
                     investors=details["investors"],
-                    source_type="web_list",
-                    source_url=url,
+                    source_type=source_cfg.get("source_type", "web_list"),
+                    source_url=fr.final_url or url,
                     raw_text=json_dumps_compact(
                         {
+                            "source": name,
                             "text": block,
                             "fetch": fetch_result_debug_json(fr),
                         }
                     ),
                     fingerprint=fp,
-                    confidence=float(source_cfg.get("confidence", 0.350)),
+                    confidence=funding_confidence(
+                        block,
+                        details,
+                        base=float(source_cfg.get("confidence", 0.350)),
+                        source_bonus=float(source_cfg.get("source_bonus", 0.0)),
+                    ),
                 )
             )
     except Exception as e:
@@ -143,7 +151,7 @@ def main() -> None:
             url = f.get("url")
             if not url:
                 continue
-            events.extend(fetch_rss_events(name, url, companies))
+            events.extend(fetch_rss_events(name, url, companies, f))
 
     web_lists = ((cfg.get("funding") or {}).get("disclosure_lists")) or []
     if web_lists:

@@ -4,23 +4,30 @@ import datetime as dt
 
 import feedparser
 
-from lib.utils import stable_fingerprint, parse_funding_details, extract_event_date
+from lib.utils import (
+    company_search_variants,
+    extract_event_date,
+    funding_confidence,
+    is_funding_related_text,
+    parse_funding_details,
+    stable_fingerprint,
+)
 from sources.base import json_dumps_compact
 from sources.funding_types import FundingEvent
 
 
-def fetch_rss_events(feed_name: str, feed_url: str, companies: list[dict]) -> list[FundingEvent]:
+def fetch_rss_events(
+    feed_name: str,
+    feed_url: str,
+    companies: list[dict],
+    source_cfg: dict | None = None,
+) -> list[FundingEvent]:
+    source_cfg = source_cfg or {}
     parsed = feedparser.parse(feed_url)
 
     company_keywords = []
     for c in companies:
-        name = c['name']
-        keywords = [name, c['normalized_name']]
-        for kw in ['集团', '有限公司', '股份有限公司', '有限责任公司', '科技', '（北京）', '(北京)']:
-            name = name.replace(kw, '')
-        if name and name not in keywords:
-            keywords.append(name.strip())
-        company_keywords.append((c['id'], keywords))
+        company_keywords.append((c["id"], company_search_variants(c["name"], c.get("aliases"))))
 
     events: list[FundingEvent] = []
 
@@ -46,6 +53,8 @@ def fetch_rss_events(feed_name: str, feed_url: str, companies: list[dict]) -> li
         event_date = extract_event_date(full_text, default_date=pub_date)
 
         details = parse_funding_details(full_text)
+        if not is_funding_related_text(full_text, details):
+            continue
 
         raw = {
             'feed': feed_name,
@@ -74,11 +83,16 @@ def fetch_rss_events(feed_name: str, feed_url: str, companies: list[dict]) -> li
                 amount=details['amount'],
                 currency=details['currency'],
                 investors=details['investors'],
-                source_type='rss_candidate',
+                source_type=source_cfg.get("source_type", "rss_candidate"),
                 source_url=link,
                 raw_text=json_dumps_compact(raw),
                 fingerprint=fp,
-                confidence=0.300,
+                confidence=funding_confidence(
+                    full_text,
+                    details,
+                    base=float(source_cfg.get("confidence", 0.300)),
+                    source_bonus=float(source_cfg.get("source_bonus", 0.0)),
+                ),
             )
         )
 

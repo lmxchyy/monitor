@@ -2,17 +2,36 @@ funding:
   rss_feeds:
     - name: "36氪"
       url: "https://36kr.com/feed"
+      confidence: 0.32
+    - name: "36氪-快讯"
+      url: "https://36kr.com/feed-newsflash"
+      confidence: 0.34
     - name: "创业邦"
       url: "https://www.cyzone.cn/rss/news.xml"
+      confidence: 0.34
     - name: "投资界"
       url: "https://www.pedaily.cn/rss"
+      confidence: 0.36
+      source_bonus: 0.04
   disclosure_lists:
     - name: "IT桔子-最新投融资"
       url: "https://www.itjuzi.com/investevents"
       fetcher: "stealth"
       capture_api: true
+      confidence: 0.46
+      source_bonus: 0.10
       selectors:
         - "tr"
         - ".list-item"
         - ".el-table__row"
         - "[class*='invest']"
+    - name: "投资界-融资动态"
+      url: "https://www.pedaily.cn/"
+      fetcher: "auto"
+      confidence: 0.42
+      source_bonus: 0.08
+      selectors:
+        - "article"
+        - ".news-list li"
+        - ".item"
+        - "li"
