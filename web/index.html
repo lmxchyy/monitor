@@ -2,60 +2,79 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>monitor live</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>monitor live · 企业信号驾驶舱</title>
   <link rel="stylesheet" href="/assets/styles.css">
 </head>
 <body>
   <div id="app" v-cloak>
-    <aside class="shell-rail">
+    <aside class="shell-rail" aria-label="monitor navigation">
       <div class="brand-mark">M</div>
-      <button class="rail-button active" title="实时看板">◇</button>
-      <button class="rail-button" title="报告">▣</button>
-      <button class="rail-button" title="日志">≡</button>
+      <button class="rail-button active" title="实时看板" aria-label="实时看板">◇</button>
+      <button class="rail-button" title="报告" aria-label="报告">▣</button>
+      <button class="rail-button" title="日志" aria-label="日志">≡</button>
     </aside>
 
     <main class="workspace">
       <header class="topbar">
-        <div>
+        <div class="title-block">
           <p class="eyebrow">Enterprise Signal Console</p>
-          <h1>monitor live</h1>
+          <h1>企业融资 & 招聘监控驾驶舱</h1>
+          <p class="subtitle">自动跑批、实时状态、报告预览与 ETL 日志统一工作台</p>
         </div>
         <div class="topbar-actions">
           <span class="status-pill" :class="statusClass">
             <span class="pulse"></span>{{ statusText }}
           </span>
-          <button class="action-button ghost" @click="refreshAll">刷新</button>
-          <button class="action-button primary" @click="runNow" :disabled="status.running">立即跑批</button>
+          <button class="action-button ghost" @click="refreshAll" :disabled="loading">{{ loading ? '刷新中' : '刷新' }}</button>
+          <button class="action-button primary" @click="runNow" :disabled="status.running || triggering">
+            {{ triggering ? '启动中' : status.running ? '跑批中' : '立即跑批' }}
+          </button>
         </div>
       </header>
 
+      <section class="hero-panel">
+        <div>
+          <span class="hero-kicker">Live Monitor</span>
+          <h2>今日企业动态监控</h2>
+          <p>聚合融资新闻、招聘变化与行业热度，报告生成后会自动刷新预览。</p>
+        </div>
+        <div class="hero-meta">
+          <span>报告刷新：60s</span>
+          <span>状态刷新：5s</span>
+        </div>
+      </section>
+
       <section class="signal-grid">
         <article class="metric-panel">
-          <span class="metric-label">报告时间</span>
+          <span class="metric-label">最新报告</span>
           <strong>{{ status.report_mtime || '-' }}</strong>
-          <small>{{ status.report || 'waiting for report' }}</small>
+          <small :title="status.report">{{ status.report || 'waiting for report' }}</small>
         </article>
         <article class="metric-panel">
           <span class="metric-label">服务时间</span>
           <strong>{{ status.server_time || '-' }}</strong>
-          <small>status refresh: 5s</small>
+          <small>本地 Web 服务运行中</small>
         </article>
         <article class="metric-panel">
           <span class="metric-label">最近任务</span>
           <strong>{{ status.last_finished_at || status.last_started_at || '-' }}</strong>
-          <small>{{ status.last_ok === false ? 'failed' : 'completed or pending' }}</small>
+          <small>{{ taskSummary }}</small>
         </article>
       </section>
 
       <section class="console-layout">
         <div class="report-frame">
+          <div class="frame-toolbar">
+            <span>HTML 报告预览</span>
+            <a class="mini-link" :href="reportSrc" target="_blank" rel="noreferrer">新窗口打开</a>
+          </div>
           <iframe :src="reportSrc" title="monitor report"></iframe>
         </div>
         <aside class="telemetry-panel">
           <div class="panel-head">
             <span>ETL Telemetry</span>
-            <button class="mini-button" @click="loadStatus">同步</button>
+            <button class="mini-button" @click="loadStatus" :disabled="loading">同步</button>
           </div>
           <pre>{{ trimmedMessage }}</pre>
         </aside>
