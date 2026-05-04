@@ -36,7 +36,7 @@ HTML_TEMPLATE = Template(
 </head>
 <body>
   <div class="container">
-    <h1>monitor 企业运行监控驾驶舱</h1>
+    <h1>企业监控驾驶舱</h1>
     <div class="meta">报告生成：{{ generated_at }} | 统计日期：{{ date }} | 监控规模：{{ company_count }}家</div>
 
     <div class="dashboard">
